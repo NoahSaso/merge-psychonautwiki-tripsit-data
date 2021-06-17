@@ -2,7 +2,6 @@
 
 # downloads and exports data on all substances from psychonautwiki and tripsit factsheets, combining to form master list with standardized format
 # prioritizes psychonautwiki ROA info (dose/duration) over tripsit factsheets
-
 # pip3 install beautifulsoup4 requests python-graphql-client
 
 import requests
@@ -51,6 +50,9 @@ roa_name_aliases = {
 
     'insufflated': ['snorted'],
     'snorted': ['insufflated'],
+
+    'vaporized': ['vapourized'],
+    'vapourized': ['vaporized'],
 }
 
 
@@ -196,7 +198,7 @@ if not len(pw_substance_data):
                 'td').text.split(', '))) if len(common_names_str) > 0 else set()
             cleaned_common_names.add(substance['name'])
             # don't include name in list of other common names
-            common_names = list(
+            common_names = sorted(
                 filter(lambda n: n != name, cleaned_common_names))
 
             # scrape ROAs from page
@@ -210,10 +212,10 @@ if not len(pw_substance_data):
 
                     row_values = curr_row.find('td', {'class': 'RowValues'})
 
-                    row_value_text = row_values.find(
+                    row_value_text = row_values.find_all(
                         text=True, recursive=False)
-                    if row_value_text:
-                        row['value'] = row_value_text.strip()
+                    if len(row_value_text):
+                        row['value'] = "".join(row_value_text).strip()
                     else:
                         row['value'] = None
 
@@ -373,9 +375,14 @@ for name in all_substance_names:
     if not len(summary):
         summary = None
 
-    bioavailability = ts_properties.get('bioavailability', '').strip()
-    if not len(bioavailability):
-        bioavailability = None
+    ts_bioavailability_str = ts_properties.get('bioavailability', '').strip()
+    ts_bioavailability = {}
+    if len(ts_bioavailability_str):
+        matches = re.findall(
+            r'([a-zA-Z\/]+)[.:\s]+([0-9\.%\s\+/\-]+)', ts_bioavailability_str)
+        if len(matches):
+            for roa_name, value in matches:
+                ts_bioavailability[roa_name.lower()] = value.strip('. \t')
 
     pw_data = pw_substance.get('data', {})
 
@@ -437,15 +444,28 @@ for name in all_substance_names:
             (roa for roa in roas if roa_matches_name(roa, ts_roa['name'])), None)
         # if ROA does not exist, add
         if not existing_roa:
-            roas.append(ts_roa)
-            continue
+            existing_roa = ts_roa
+            roas.append(existing_roa)
+            # we want bioavailability from below, so don't skip
 
-        # if TS has dosage but existing ROA is missing dosage, add
-        if ('dosage' in ts_roa and ts_roa['dosage'] and len(ts_roa['dosage'])) and ('dosage' not in existing_roa or not existing_roa['dosage'] or not len(existing_roa['dosage'])):
+        # if ROA does not already have bioavailability, try to get from TS
+        if not existing_roa.get('bioavailability'):
+            name_lower = ts_roa['name'].lower()
+            name_aliases = roa_name_aliases.get(name_lower, [])
+
+            alias_found = next(
+                (name_alias in ts_bioavailability for name_alias in name_aliases), None)
+            # TS has bioavailability if name or any name alias is found
+            if name_lower in ts_bioavailability or alias_found:
+                existing_roa['bioavailability'] = ts_bioavailability.get(
+                    name_lower) or ts_bioavailability.get(alias_found)
+
+        # if existing ROA is missing dosage and TS has dosage, add
+        if (not existing_roa.get('dosage') or not len(existing_roa['dosage'])) and ('dosage' in ts_roa and ts_roa['dosage'] and len(ts_roa['dosage'])):
             existing_roa['dosage'] = ts_roa['dosage']
 
-        # if TS has duration but existing ROA is missing duration, add
-        if ('duration' in ts_roa and ts_roa['duration'] and len(ts_roa['duration'])) and ('duration' not in existing_roa or not existing_roa['duration'] or not len(existing_roa['duration'])):
+        # if existing ROA is missing duration and TS has duration, add
+        if (not existing_roa.get('duration') or not len(existing_roa['duration'])) and ('duration' in ts_roa and ts_roa['duration'] and len(ts_roa['duration'])):
             existing_roa['duration'] = ts_roa['duration']
 
     interactions = None
@@ -471,7 +491,6 @@ for name in all_substance_names:
         'addictionPotential': addiction_potential,
         'tolerance': tolerance,
         'crossTolerances': cross_tolerances,
-        'bioavailability': bioavailability,
         'roas': roas,
         'interactions': interactions,
     })
