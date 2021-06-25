@@ -357,6 +357,9 @@ for name in all_substance_names:
     # url will always exist for psychonautwiki substance, so tripsit substance must exist if url is None
     url = pw_substance.get(
         'url') or f"https://drugs.tripsit.me/{ts_substance['name']}"
+    
+    ts_links = ts_substance.get('links', {})
+    experiences_url = ts_links.get('experiences')
 
     # pick display name from available substances found from both datasets
     names = list(filter(lambda n: n is not None and len(n) > 0, [
@@ -486,6 +489,7 @@ for name in all_substance_names:
 
     substance_data.append({
         'url': url,
+        'experiences_url': experiences_url,
         'name': name,
         'aliases': list(aliases),
         'aliasesStr': ','.join(aliases),
