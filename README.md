@@ -2,6 +2,30 @@
 
 Script to merge data from PsychonautWiki API + pages and TripSit factsheets into one standardized format
 
+## Installation
+
+1.  Install virtualenv
+    ```
+    python3 -m pip install --user virtualenv
+    ```
+2.  Create virtual environment
+    ```
+    python3 -m venv env
+    ```
+3.  Activate virtual environment
+    ```
+    source env/bin/activate
+    ```
+4.  Install packages
+    ```
+    python3 -m pip install -r requirements.txt
+    ```
+
+## Usage
+```
+python3 scrape.py
+```
+
 ## Output Schema
 
 | Property                  | Type                     | Description                                                                    | Source                                                                                |
