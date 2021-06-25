@@ -375,6 +375,10 @@ for name in all_substance_names:
     if not len(summary):
         summary = None
 
+    test_kits = ts_properties.get('test-kits', '').strip()
+    if not len(test_kits):
+        test_kits = None
+
     ts_bioavailability_str = ts_properties.get('bioavailability', '').strip()
     ts_bioavailability = {}
     if len(ts_bioavailability_str):
@@ -486,6 +490,7 @@ for name in all_substance_names:
         'aliases': list(aliases),
         'aliasesStr': ','.join(aliases),
         'summary': summary,
+        'reagents': test_kits,
         'classes': classes,
         'toxicity': toxicity,
         'addictionPotential': addiction_potential,
