@@ -489,7 +489,7 @@ for name in all_substance_names:
 
     substance_data.append({
         'url': url,
-        'experiences_url': experiences_url,
+        'experiencesUrl': experiences_url,
         'name': name,
         'aliases': list(aliases),
         'aliasesStr': ','.join(aliases),
