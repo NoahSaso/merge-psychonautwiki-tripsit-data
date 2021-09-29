@@ -14,26 +14,28 @@ import re
 import traceback
 
 headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '3600',
-    'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0'
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Max-Age": "3600",
+    "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0",
 }
 
 ts_api_url = "https://tripbot.tripsit.me/api/tripsit/getAllDrugs"
 ps_api_url = "https://api.psychonautwiki.org"
-ps_client = GraphqlClient(endpoint=ps_api_url)
+ps_client = GraphqlClient(endpoint=ps_api_url, headers=headers)
 
 
 def substance_name_match(name, substance):
     """check if name matches any value in keys we care about"""
     lower_name = name.lower()
     return any(
-        [lower_name == substance[key].lower()
-            for key in ['name', 'pretty_name'] if key in substance] +
-        [lower_name == alias.lower()
-            for alias in substance.get('aliases', [])]
+        [
+            lower_name == substance[key].lower()
+            for key in ["name", "pretty_name"]
+            if key in substance
+        ]
+        + [lower_name == alias.lower() for alias in substance.get("aliases", [])]
     )
 
 
@@ -42,62 +44,60 @@ def find_substance_in_data(data, name):
 
 
 roa_name_aliases = {
-    'iv': ['intravenous'],
-    'intravenous': ['iv'],
-
-    'im': ['intramuscular'],
-    'intramuscular': ['im'],
-
-    'insufflated': ['snorted'],
-    'snorted': ['insufflated'],
-
-    'vaporized': ['vapourized'],
-    'vapourized': ['vaporized'],
+    "iv": ["intravenous"],
+    "intravenous": ["iv"],
+    "im": ["intramuscular"],
+    "intramuscular": ["im"],
+    "insufflated": ["snorted"],
+    "snorted": ["insufflated"],
+    "vaporized": ["vapourized"],
+    "vapourized": ["vaporized"],
 }
 
 
 def roa_matches_name(roa, name):
     aliases = roa_name_aliases.get(name.lower(), [])
-    return roa['name'].lower() == name.lower() or roa['name'].lower() in aliases
+    return roa["name"].lower() == name.lower() or roa["name"].lower() in aliases
+
 
 # get tripsit data
 
 
-ts_dose_order = ['Threshold', 'Light', 'Common', 'Strong', 'Heavy']
-ts_combo_ignore = ['benzos']  # duplicate
+ts_dose_order = ["Threshold", "Light", "Common", "Strong", "Heavy"]
+ts_combo_ignore = ["benzos"]  # duplicate
 # prettify names in interaction list
 ts_combo_transformations = {
-    'lsd': 'LSD',
-    'mushrooms': 'Mushrooms',
-    'dmt': 'DMT',
-    'mescaline': 'Mescaline',
-    'dox': 'DOx',
-    'nbomes': 'NBOMes',
-    '2c-x': '2C-x',
-    '2c-t-x': '2C-T-x',
-    'amt': 'aMT',
-    '5-meo-xxt': '5-MeO-xxT',
-    'cannabis': 'Cannabis',
-    'ketamine': 'Ketamine',
-    'mxe': 'MXE',
-    'dxm': 'DXM',
-    'pcp': 'PCP',
-    'nitrous': 'Nitrous',
-    'amphetamines': 'Amphetamines',
-    'mdma': 'MDMA',
-    'cocaine': 'Cocaine',
-    'caffeine': 'Caffeine',
-    'alcohol': 'Alcohol',
-    'ghb/gbl': 'GHB/GBL',
-    'opioids': 'Opioids',
-    'tramadol': 'Tramadol',
-    'benzodiazepines': 'Benzodiazepines',
-    'maois': 'MAOIs',
-    'ssris': 'SSRIs',
+    "lsd": "LSD",
+    "mushrooms": "Mushrooms",
+    "dmt": "DMT",
+    "mescaline": "Mescaline",
+    "dox": "DOx",
+    "nbomes": "NBOMes",
+    "2c-x": "2C-x",
+    "2c-t-x": "2C-T-x",
+    "amt": "aMT",
+    "5-meo-xxt": "5-MeO-xxT",
+    "cannabis": "Cannabis",
+    "ketamine": "Ketamine",
+    "mxe": "MXE",
+    "dxm": "DXM",
+    "pcp": "PCP",
+    "nitrous": "Nitrous",
+    "amphetamines": "Amphetamines",
+    "mdma": "MDMA",
+    "cocaine": "Cocaine",
+    "caffeine": "Caffeine",
+    "alcohol": "Alcohol",
+    "ghb/gbl": "GHB/GBL",
+    "opioids": "Opioids",
+    "tramadol": "Tramadol",
+    "benzodiazepines": "Benzodiazepines",
+    "maois": "MAOIs",
+    "ssris": "SSRIs",
 }
 
 ts_response = requests.get(ts_api_url)
-ts_data = ts_response.json()['data'][0]
+ts_data = ts_response.json()["data"][0]
 
 ts_substances_data = list(ts_data.values())
 
@@ -105,24 +105,21 @@ ts_substances_data = list(ts_data.values())
 # TS has durations split over a few keys, so this finds or creates the duration for the associated ROA
 # and adds a new line item
 def ts_add_formatted_duration(ts_roas, formatted_duration, duration_name):
-    units = formatted_duration.get('_unit', '') or ''
-    if '_unit' in formatted_duration:
-        formatted_duration.pop('_unit')
+    units = formatted_duration.get("_unit", "") or ""
+    if "_unit" in formatted_duration:
+        formatted_duration.pop("_unit")
 
     def add_to_roa(roa, value):
-        if 'duration' not in roa:
-            roa['duration'] = []
+        if "duration" not in roa:
+            roa["duration"] = []
 
-        roa['duration'].append({
-            'name': duration_name,
-            'value': value
-        })
+        roa["duration"].append({"name": duration_name, "value": value})
 
     for roa_name, value in formatted_duration.items():
         value_string = f"{value} {units}".strip()
 
         # if value present (i.e. just one value for all ROA doses provided above), apply to all ROAs
-        if roa_name == 'value':
+        if roa_name == "value":
             # if TS did not add any doses, do nothing with this value
             # we could theoretically apply this to all PW doses with missing durations, but we can't be sure
             # if it applies to all ROAs, so just ignore
@@ -135,141 +132,164 @@ def ts_add_formatted_duration(ts_roas, formatted_duration, duration_name):
         # add to matching ROA or create new ROA if doesn't exist
         else:
             ts_roa = next(
-                (ts_roa for ts_roa in ts_roas if roa_matches_name(ts_roa, roa_name)), None)
+                (ts_roa for ts_roa in ts_roas if roa_matches_name(ts_roa, roa_name)),
+                None,
+            )
             # if ROA doesn't exist, make new
             if not ts_roa:
-                ts_roa = {'name': roa_name}
+                ts_roa = {"name": roa_name}
                 ts_roas.append(ts_roa)
 
             add_to_roa(ts_roa, value_string)
+
 
 # get psychonautwiki data
 
 
 def pw_clean_common_name(name):
-    name = re.sub(r'^"', '', name)
-    name = re.sub(r'"$', '', name)
-    name = re.sub(r'"?\[\d*\]$', '', name)
-    name = re.sub(r'\s*More names\.$', '', name)
-    name = re.sub(r'\.$', '', name)
+    name = re.sub(r'^"', "", name)
+    name = re.sub(r'"$', "", name)
+    name = re.sub(r'"?\[\d*\]$', "", name)
+    name = re.sub(r"\s*More names\.$", "", name)
+    name = re.sub(r"\.$", "", name)
     return name.strip()
 
 
 def pw_should_skip(name, soup):
-    return name.startswith('Experience:') or len(soup.find_all(text="Common names")) == 0
+    return (
+        name.startswith("Experience:") or len(soup.find_all(text="Common names")) == 0
+    )
 
 
 pw_substance_data = []
 
-if os.path.exists('_cached_pw_substances.json'):
-    with open('_cached_pw_substances.json') as f:
+if os.path.exists("_cached_pw_substances.json"):
+    with open("_cached_pw_substances.json") as f:
         pw_substance_data = json.load(f)
 
 if not len(pw_substance_data):
-    pw_substance_urls_query = """
-    {
-        substances(limit: 11000) {
-            name
-            url
-        }
-    }
-    """
+    offset = 0
+    pw_substance_urls_query = (
+        f"{{substances(limit: 250 offset: {offset}) {{name url}}}}"
+    )
 
-    pw_substance_urls_data = ps_client.execute(query=pw_substance_urls_query)[
-        'data']['substances']
+    pw_substance_urls_data = ps_client.execute(query=pw_substance_urls_query,)["data"][
+        "substances"
+    ]
+
+    offset = 252
+    while offset <= 340:
+        pw_substance_urls_query = (
+            f"{{substances(limit: 1 offset: {offset}) {{name url}}}}"
+        )
+        offset += 1
+        temp_data = ps_client.execute(query=pw_substance_urls_query,)["data"][
+            "substances"
+        ]
+        print(temp_data)
+        if temp_data is None:
+            continue
+        pw_substance_urls_data.extend(temp_data)
 
     for idx, substance in enumerate(pw_substance_urls_data):
         try:
-            url = substance['url']
+            url = substance["url"]
             substance_req = requests.get(url, headers)
-            substance_soup = BeautifulSoup(
-                substance_req.content, "html.parser")
+            substance_soup = BeautifulSoup(substance_req.content, "html.parser")
 
-            name = substance_soup.find('h1', id='firstHeading').text
+            name = substance_soup.find("h1", id="firstHeading").text
             if pw_should_skip(name, substance_soup):
-                print(
-                    f"Skipping {name} ({idx + 1} / {len(pw_substance_urls_data)})")
+                print(f"Skipping {name} ({idx + 1} / {len(pw_substance_urls_data)})")
                 continue
 
             # get aliases text
             common_names_str = substance_soup.find_all(text="Common names")
 
-            cleaned_common_names = set(map(pw_clean_common_name, common_names_str[0].parent.find_next_sibling(
-                'td').text.split(', '))) if len(common_names_str) > 0 else set()
-            cleaned_common_names.add(substance['name'])
+            cleaned_common_names = (
+                set(
+                    map(
+                        pw_clean_common_name,
+                        common_names_str[0]
+                        .parent.find_next_sibling("td")
+                        .text.split(", "),
+                    )
+                )
+                if len(common_names_str) > 0
+                else set()
+            )
+            cleaned_common_names.add(substance["name"])
             # don't include name in list of other common names
-            common_names = sorted(
-                filter(lambda n: n != name, cleaned_common_names))
+            common_names = sorted(filter(lambda n: n != name, cleaned_common_names))
 
             # scrape ROAs from page
 
             def get_data_starting_at_row(curr_row):
                 rows = []
-                while curr_row.find('th', {'class': 'ROARowHeader'}):
+                while curr_row.find("th", {"class": "ROARowHeader"}):
                     row = {}
-                    row['name'] = curr_row.find(
-                        'th', {'class': 'ROARowHeader'}).find('a').text
+                    row["name"] = (
+                        curr_row.find("th", {"class": "ROARowHeader"}).find("a").text
+                    )
 
-                    row_values = curr_row.find('td', {'class': 'RowValues'})
+                    row_values = curr_row.find("td", {"class": "RowValues"})
 
-                    row_value_text = row_values.find_all(
-                        text=True, recursive=False)
+                    row_value_text = row_values.find_all(text=True, recursive=False)
                     if len(row_value_text):
-                        row['value'] = "".join(row_value_text).strip()
+                        row["value"] = "".join(row_value_text).strip()
                     else:
-                        row['value'] = None
+                        row["value"] = None
 
-                    row_note = row_values.find('span')
+                    row_note = row_values.find("span")
                     if row_note:
-                        row['note'] = re.sub(
-                            r'\s*\[\d*\]$', '', row_note.text).strip()
+                        row["note"] = re.sub(r"\s*\[\d*\]$", "", row_note.text).strip()
 
                     rows.append(row)
 
-                    curr_row = curr_row.find_next('tr')
+                    curr_row = curr_row.find_next("tr")
                 return rows, curr_row
 
             roas = []
 
-            dose_charts = substance_soup.find_all('tr', {'class': 'dosechart'})
+            dose_charts = substance_soup.find_all("tr", {"class": "dosechart"})
             for dose_chart in dose_charts:
                 table = dose_chart.parent.parent
-                roa_name = table.find('tr').find('a').text
+                roa_name = table.find("tr").find("a").text
                 if not roa_name:
                     continue
 
                 roa = {
-                    'name': roa_name,
-                    'dosage': [],
-                    'duration': [],
+                    "name": roa_name,
+                    "dosage": [],
+                    "duration": [],
                 }
 
                 # dosage
 
-                curr_row = dose_chart.find_next('tr')
-                roa['dosage'], curr_row = get_data_starting_at_row(curr_row)
+                curr_row = dose_chart.find_next("tr")
+                roa["dosage"], curr_row = get_data_starting_at_row(curr_row)
 
                 # extract bioavailability
-                if len(roa['dosage']) and roa['dosage'][0]['name'] == 'Bioavailability':
-                    bioavailability = roa['dosage'].pop(0)
-                    roa['bioavailability'] = bioavailability['value']
+                if len(roa["dosage"]) and roa["dosage"][0]["name"] == "Bioavailability":
+                    bioavailability = roa["dosage"].pop(0)
+                    roa["bioavailability"] = bioavailability["value"]
 
                 # duration
 
-                if curr_row.find('th', {'class': 'ROASubHeader'}):
-                    curr_row = curr_row.find_next('tr')
-                    roa['duration'], _ = get_data_starting_at_row(curr_row)
+                if curr_row.find("th", {"class": "ROASubHeader"}):
+                    curr_row = curr_row.find_next("tr")
+                    roa["duration"], _ = get_data_starting_at_row(curr_row)
 
-                if not len(roa['dosage']):
-                    roa['dosage'] = None
-                if not len(roa['duration']):
-                    roa['duration'] = None
+                if not len(roa["dosage"]):
+                    roa["dosage"] = None
+                if not len(roa["duration"]):
+                    roa["duration"] = None
 
                 roas.append(roa)
 
             # query PS API for more data on substance
 
-            query = """
+            query = (
+                """
                 {
                     substances(query: "%s") {
                         name
@@ -287,9 +307,11 @@ if not len(pw_substance_data):
                         crossTolerances
                     }
                 }
-            """ % substance['name']
+            """
+                % substance["name"]
+            )
 
-            data = ps_client.execute(query=query)['data']['substances']
+            data = ps_client.execute(query=query)["data"]["substances"]
             if len(data) == 0:
                 continue
             elif len(data) > 1:
@@ -297,18 +319,21 @@ if not len(pw_substance_data):
                 print(f"{name} has more than one dataset... investigate why")
 
             data = data[0]
-            if 'name' in data:
-                data.pop('name')
+            if "name" in data:
+                data.pop("name")
 
-            pw_substance_data.append({
-                'url': url,
-                'name': name,
-                'aliases': common_names,
-                'roas': roas,
-                'data': data
-            })
+            pw_substance_data.append(
+                {
+                    "url": url,
+                    "name": name,
+                    "aliases": common_names,
+                    "roas": roas,
+                    "data": data,
+                }
+            )
             print(
-                f"Done with {name} [{len(roas)} ROA(s)] ({idx + 1} / {len(pw_substance_urls_data)})")
+                f"Done with {name} [{len(roas)} ROA(s)] ({idx + 1} / {len(pw_substance_urls_data)})"
+            )
 
         except KeyboardInterrupt:
             print("\nScrape canceled")
@@ -318,16 +343,18 @@ if not len(pw_substance_data):
             print(traceback.format_exc())
             exit(1)
 
-    with open(f"_cached_pw_substances.json", 'w') as f:
+    with open(f"_cached_pw_substances.json", "w") as f:
         f.write(json.dumps(pw_substance_data, indent=2))
 
 # combine tripsit and psychonautwiki data
 
 
-all_substance_names = sorted(set(
-    list(map(lambda s: s.get('name', '').lower(), pw_substance_data)) +
-    list(map(lambda s: s.get('name', '').lower(), ts_substances_data))
-))
+all_substance_names = sorted(
+    set(
+        list(map(lambda s: s.get("name", "").lower(), pw_substance_data))
+        + list(map(lambda s: s.get("name", "").lower(), ts_substances_data))
+    )
+)
 substance_data = []
 
 for name in all_substance_names:
@@ -340,8 +367,7 @@ for name in all_substance_names:
         pw_substance = {}
 
     # find TS substance
-    ts_substance = find_substance_in_data(
-        ts_substances_data, name)
+    ts_substance = find_substance_in_data(ts_substances_data, name)
     # remove to get rid of duplicates in final output
     if ts_substance:
         ts_substances_data.remove(ts_substance)
@@ -352,63 +378,76 @@ for name in all_substance_names:
     if not pw_substance and not ts_substance:
         continue
 
-    ts_properties = ts_substance.get('properties', {})
+    ts_properties = ts_substance.get("properties", {})
 
     # url will always exist for psychonautwiki substance, so tripsit substance must exist if url is None
-    url = pw_substance.get(
-        'url') or f"https://drugs.tripsit.me/{ts_substance['name']}"
-    
-    ts_links = ts_substance.get('links', {})
-    experiences_url = ts_links.get('experiences')
+    url = pw_substance.get("url") or f"https://drugs.tripsit.me/{ts_substance['name']}"
+
+    ts_links = ts_substance.get("links", {})
+    experiences_url = ts_links.get("experiences")
 
     # pick display name from available substances found from both datasets
-    names = list(filter(lambda n: n is not None and len(n) > 0, [
-        pw_substance.get('name'), ts_substance.get('pretty_name')]))
+    names = list(
+        filter(
+            lambda n: n is not None and len(n) > 0,
+            [pw_substance.get("name"), ts_substance.get("pretty_name")],
+        )
+    )
     # people use shorter names
     name = min(names, key=len)
 
     # lowercase list of all names, excluding chosen name above
-    aliases = set(map(lambda n: n.lower(), filter(lambda n: n is not None and len(n) > 0, [
-        pw_substance.get('name'), ts_substance.get('pretty_name')] + pw_substance.get('aliases', []) + ts_substance.get('aliases', []))))
+    aliases = set(
+        map(
+            lambda n: n.lower(),
+            filter(
+                lambda n: n is not None and len(n) > 0,
+                [pw_substance.get("name"), ts_substance.get("pretty_name")]
+                + pw_substance.get("aliases", [])
+                + ts_substance.get("aliases", []),
+            ),
+        )
+    )
     if name.lower() in aliases:
         aliases.remove(name.lower())
     aliases = sorted(aliases)
 
-    summary = ts_properties.get('summary', '').strip()
+    summary = ts_properties.get("summary", "").strip()
     if not len(summary):
         summary = None
 
-    test_kits = ts_properties.get('test-kits', '').strip()
+    test_kits = ts_properties.get("test-kits", "").strip()
     if not len(test_kits):
         test_kits = None
 
-    ts_bioavailability_str = ts_properties.get('bioavailability', '').strip()
+    ts_bioavailability_str = ts_properties.get("bioavailability", "").strip()
     ts_bioavailability = {}
     if len(ts_bioavailability_str):
         matches = re.findall(
-            r'([a-zA-Z\/]+)[.:\s]+([0-9\.%\s\+/\-]+)', ts_bioavailability_str)
+            r"([a-zA-Z\/]+)[.:\s]+([0-9\.%\s\+/\-]+)", ts_bioavailability_str
+        )
         if len(matches):
             for roa_name, value in matches:
-                ts_bioavailability[roa_name.lower()] = value.strip('. \t')
+                ts_bioavailability[roa_name.lower()] = value.strip(". \t")
 
-    pw_data = pw_substance.get('data', {})
+    pw_data = pw_substance.get("data", {})
 
-    classes = pw_data.get('class')
-    toxicity = pw_data.get('toxicity')
-    addiction_potential = pw_data.get('addictionPotential')
-    tolerance = pw_data.get('tolerance')
-    cross_tolerances = pw_data.get('crossTolerances')
+    classes = pw_data.get("class")
+    toxicity = pw_data.get("toxicity")
+    addiction_potential = pw_data.get("addictionPotential")
+    tolerance = pw_data.get("tolerance")
+    cross_tolerances = pw_data.get("crossTolerances")
 
     roas = []
 
     # get PW ROAs
-    pw_roas = pw_substance.get('roas', [])
+    pw_roas = pw_substance.get("roas", [])
 
     # process TS ROAs
     ts_roas = []
 
     # TS ROA dosage
-    ts_formatted_dose = ts_substance.get('formatted_dose')
+    ts_formatted_dose = ts_substance.get("formatted_dose")
     if ts_formatted_dose:
         for roa_name, dose_data in ts_formatted_dose.items():
             dose_levels = []
@@ -417,30 +456,25 @@ for name in all_substance_names:
                 if value_string is None:
                     continue
 
-                dose_levels.append({
-                    'name': dose_level,
-                    'value': value_string,
-                })
+                dose_levels.append(
+                    {"name": dose_level, "value": value_string,}
+                )
 
             if len(dose_levels):
-                ts_roas.append({
-                    'name': roa_name,
-                    'dosage': dose_levels
-                })
+                ts_roas.append({"name": roa_name, "dosage": dose_levels})
 
     # TS ROA durations
-    ts_formatted_onset = ts_substance.get('formatted_onset')
+    ts_formatted_onset = ts_substance.get("formatted_onset")
     if ts_formatted_onset:
-        ts_add_formatted_duration(ts_roas, ts_formatted_onset, 'Onset')
+        ts_add_formatted_duration(ts_roas, ts_formatted_onset, "Onset")
 
-    ts_formatted_duration = ts_substance.get('formatted_duration')
+    ts_formatted_duration = ts_substance.get("formatted_duration")
     if ts_formatted_duration:
-        ts_add_formatted_duration(ts_roas, ts_formatted_duration, 'Duration')
+        ts_add_formatted_duration(ts_roas, ts_formatted_duration, "Duration")
 
-    ts_formatted_aftereffects = ts_substance.get('formatted_aftereffects')
+    ts_formatted_aftereffects = ts_substance.get("formatted_aftereffects")
     if ts_formatted_aftereffects:
-        ts_add_formatted_duration(ts_roas,
-                                  ts_formatted_aftereffects, 'After effects')
+        ts_add_formatted_duration(ts_roas, ts_formatted_aftereffects, "After effects")
 
     # merge PW and TS ROAs
     # prioritize PW for ROAs but use TS to fill in gaps
@@ -448,7 +482,8 @@ for name in all_substance_names:
     roas.extend(pw_roas)
     for ts_roa in ts_roas:
         existing_roa = next(
-            (roa for roa in roas if roa_matches_name(roa, ts_roa['name'])), None)
+            (roa for roa in roas if roa_matches_name(roa, ts_roa["name"])), None
+        )
         # if ROA does not exist, add
         if not existing_roa:
             existing_roa = ts_roa
@@ -456,57 +491,65 @@ for name in all_substance_names:
             # we want bioavailability from below, so don't skip
 
         # if ROA does not already have bioavailability, try to get from TS
-        if not existing_roa.get('bioavailability'):
-            name_lower = ts_roa['name'].lower()
+        if not existing_roa.get("bioavailability"):
+            name_lower = ts_roa["name"].lower()
             name_aliases = roa_name_aliases.get(name_lower, [])
 
             alias_found = next(
-                (name_alias in ts_bioavailability for name_alias in name_aliases), None)
+                (name_alias in ts_bioavailability for name_alias in name_aliases), None
+            )
             # TS has bioavailability if name or any name alias is found
             if name_lower in ts_bioavailability or alias_found:
-                existing_roa['bioavailability'] = ts_bioavailability.get(
-                    name_lower) or ts_bioavailability.get(alias_found)
+                existing_roa["bioavailability"] = ts_bioavailability.get(
+                    name_lower
+                ) or ts_bioavailability.get(alias_found)
 
         # if existing ROA is missing dosage and TS has dosage, add
-        if (not existing_roa.get('dosage') or not len(existing_roa['dosage'])) and ('dosage' in ts_roa and ts_roa['dosage'] and len(ts_roa['dosage'])):
-            existing_roa['dosage'] = ts_roa['dosage']
+        if (not existing_roa.get("dosage") or not len(existing_roa["dosage"])) and (
+            "dosage" in ts_roa and ts_roa["dosage"] and len(ts_roa["dosage"])
+        ):
+            existing_roa["dosage"] = ts_roa["dosage"]
 
         # if existing ROA is missing duration and TS has duration, add
-        if (not existing_roa.get('duration') or not len(existing_roa['duration'])) and ('duration' in ts_roa and ts_roa['duration'] and len(ts_roa['duration'])):
-            existing_roa['duration'] = ts_roa['duration']
+        if (not existing_roa.get("duration") or not len(existing_roa["duration"])) and (
+            "duration" in ts_roa and ts_roa["duration"] and len(ts_roa["duration"])
+        ):
+            existing_roa["duration"] = ts_roa["duration"]
 
     interactions = None
-    combos = ts_substance.get('combos')
+    combos = ts_substance.get("combos")
     if combos:
         interactions = []
         for key, combo_data in combos.items():
             if key in ts_combo_ignore:
                 continue
 
-            combo_data['name'] = ts_combo_transformations[key]
+            combo_data["name"] = ts_combo_transformations[key]
             interactions.append(combo_data)
-        interactions = sorted(interactions, key=lambda i: i['name'])
+        interactions = sorted(interactions, key=lambda i: i["name"])
 
-    substance_data.append({
-        'url': url,
-        'experiencesUrl': experiences_url,
-        'name': name,
-        'aliases': list(aliases),
-        'aliasesStr': ','.join(aliases),
-        'summary': summary,
-        'reagents': test_kits,
-        'classes': classes,
-        'toxicity': toxicity,
-        'addictionPotential': addiction_potential,
-        'tolerance': tolerance,
-        'crossTolerances': cross_tolerances,
-        'roas': roas,
-        'interactions': interactions,
-    })
+    substance_data.append(
+        {
+            "url": url,
+            "experiencesUrl": experiences_url,
+            "name": name,
+            "aliases": list(aliases),
+            "aliasesStr": ",".join(aliases),
+            "summary": summary,
+            "reagents": test_kits,
+            "classes": classes,
+            "toxicity": toxicity,
+            "addictionPotential": addiction_potential,
+            "tolerance": tolerance,
+            "crossTolerances": cross_tolerances,
+            "roas": roas,
+            "interactions": interactions,
+        }
+    )
 
 # output
 
 
 substances_json = json.dumps(substance_data, indent=2)
-with open(f"substances_{time()}.json", 'w') as f:
+with open(f"substances_{time()}.json", "w") as f:
     f.write(substances_json)
