@@ -333,8 +333,9 @@ if not len(pw_substance_data):
             print(traceback.format_exc())
             exit(1)
 
-    with open(f"_cached_pw_substances.json", "w") as f:
-        f.write(json.dumps(pw_substance_data, indent=2))
+    # TODO: add option switch for this
+    # with open(f"_cached_pw_substances.json", "w") as f:
+    #     f.write(json.dumps(pw_substance_data, indent=2))
 
 # combine tripsit and psychonautwiki data
 
