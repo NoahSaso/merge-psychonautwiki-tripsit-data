@@ -30,7 +30,7 @@ headers = {
 
 ts_api_url = "https://tripbot.tripsit.me/api/tripsit/getAllDrugs"
 ps_api_url = "https://api.psychonautwiki.org"
-ps_client = GraphqlClient(endpoint=ps_api_url)
+ps_client = GraphqlClient(endpoint=ps_api_url, headers=headers)
 
 
 def substance_name_match(name, substance):
@@ -175,18 +175,28 @@ if os.path.exists("_cached_pw_substances.json"):
         pw_substance_data = json.load(f)
 
 if not len(pw_substance_data):
-    pw_substance_urls_query = """
-    {
-        substances(limit: 11000) {
-            name
-            url
-        }
-    }
-    """
+    offset = 0
+    pw_substance_urls_query = (
+        f"{{substances(limit: 250 offset: {offset}) {{name url}}}}"
+    )
 
-    pw_substance_urls_data = ps_client.execute(query=pw_substance_urls_query)["data"][
+    pw_substance_urls_data = ps_client.execute(query=pw_substance_urls_query,)["data"][
         "substances"
     ]
+
+    offset = 252
+    while offset <= 340:
+        pw_substance_urls_query = (
+            f"{{substances(limit: 1 offset: {offset}) {{name url}}}}"
+        )
+        offset += 1
+        temp_data = ps_client.execute(query=pw_substance_urls_query,)["data"][
+            "substances"
+        ]
+        print(temp_data)
+        if temp_data is None:
+            continue
+        pw_substance_urls_data.extend(temp_data)
 
     for idx, substance in enumerate(pw_substance_urls_data):
         try:
