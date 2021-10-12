@@ -457,7 +457,10 @@ for name in all_substance_names:
                     continue
 
                 dose_levels.append(
-                    {"name": dose_level, "value": value_string,}
+                    {
+                        "name": dose_level,
+                        "value": value_string,
+                    }
                 )
 
             if len(dose_levels):
