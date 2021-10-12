@@ -23,7 +23,15 @@ Script to merge data from PsychonautWiki API + pages and TripSit factsheets into
 
 ## Usage
 ```
-python3 scrape.py
+python scrape.py [-h] [output]
+
+Scrape PsychonautWiki and TripSit data into unified dataset
+
+positional arguments:
+  output      Optional output file
+
+optional arguments:
+  -h, --help  show this help message and exit
 ```
 
 ## Output Schema

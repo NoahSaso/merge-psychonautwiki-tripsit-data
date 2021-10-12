@@ -4,6 +4,7 @@
 # prioritizes psychonautwiki ROA info (dose/duration) over tripsit factsheets
 # pip3 install beautifulsoup4 requests python-graphql-client
 
+import argparse
 import requests
 from bs4 import BeautifulSoup
 from time import time, sleep
@@ -12,6 +13,12 @@ import json
 import os
 import re
 import traceback
+
+parser = argparse.ArgumentParser(
+    description="Scrape PsychonautWiki and TripSit data into unified dataset"
+)
+parser.add_argument("output", type=str, nargs="?", help="Optional output file")
+args = parser.parse_args()
 
 headers = {
     "Access-Control-Allow-Origin": "*",
@@ -543,7 +550,10 @@ for name in all_substance_names:
 
 # output
 
+output_filename = f"substances_{time()}.json"
+if args.output and args.output.strip():
+    output_filename = args.output.strip()
 
 substances_json = json.dumps(substance_data, indent=2)
-with open(f"substances_{time()}.json", "w") as f:
+with open(output_filename, "w") as f:
     f.write(substances_json)
