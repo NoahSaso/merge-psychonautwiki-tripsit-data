@@ -164,7 +164,9 @@ def pw_clean_common_name(name):
 
 def pw_should_skip(name, soup):
     return (
-        name.startswith("Experience:") or len(soup.find_all(text="Common names")) == 0
+        not name
+        or name.startswith("Experience:")
+        or len(soup.find_all(text="Common names")) == 0
     )
 
 
@@ -194,9 +196,11 @@ if not len(pw_substance_data):
             substance_req = requests.get(url, headers)
             substance_soup = BeautifulSoup(substance_req.content, "html.parser")
 
-            name = substance_soup.find("h1", id="firstHeading").text
+            name = getattr(substance_soup.find("h1", id="firstHeading"), "text", None)
             if pw_should_skip(name, substance_soup):
-                print(f"Skipping {name} ({idx + 1} / {len(pw_substance_urls_data)})")
+                print(
+                    f"Skipping {name} at {url} ({idx + 1} / {len(pw_substance_urls_data)})"
+                )
                 continue
 
             # get aliases text
