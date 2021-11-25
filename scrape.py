@@ -166,7 +166,7 @@ def pw_should_skip(name, soup):
     return (
         not name
         or name.startswith("Experience:")
-        or len(soup.find_all(text="Common names")) == 0
+        or len(soup.find_all(text="Routes of Administration")) == 0
     )
 
 
