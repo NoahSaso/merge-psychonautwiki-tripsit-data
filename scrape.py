@@ -7,17 +7,21 @@
 import argparse
 import requests
 from bs4 import BeautifulSoup
-from time import time, sleep
+from time import time
 from python_graphql_client import GraphqlClient
 import json
 import os
 import re
 import traceback
+import sys
 
 parser = argparse.ArgumentParser(
     description="Scrape PsychonautWiki and TripSit data into unified dataset"
 )
 parser.add_argument("output", type=str, nargs="?", help="Optional output file")
+parser.add_argument(
+    "-q", "--quiet", action="store_true", default=False, help="Quieter output"
+)
 args = parser.parse_args()
 
 headers = {
@@ -198,9 +202,13 @@ if not len(pw_substance_data):
 
             name = getattr(substance_soup.find("h1", id="firstHeading"), "text", None)
             if pw_should_skip(name, substance_soup):
-                print(
-                    f"Skipping {name} at {url} ({idx + 1} / {len(pw_substance_urls_data)})"
-                )
+                if args.quiet:
+                    print("x", end="")
+                    sys.stdout.flush()
+                else:
+                    print(
+                        f"Skipping {name} at {url} ({idx + 1} / {len(pw_substance_urls_data)})"
+                    )
                 continue
 
             # get aliases text
@@ -332,17 +340,25 @@ if not len(pw_substance_data):
                     "data": data,
                 }
             )
-            print(
-                f"Done with {name} [{len(roas)} ROA(s)] ({idx + 1} / {len(pw_substance_urls_data)})"
-            )
+
+            if args.quiet:
+                print(".", end="")
+                sys.stdout.flush()
+            else:
+                print(
+                    f"Done with {name} [{len(roas)} ROA(s)] ({idx + 1} / {len(pw_substance_urls_data)})"
+                )
 
         except KeyboardInterrupt:
             print("\nScrape canceled")
             exit(0)
         except:
-            print(f"{name} failed:")
-            print(traceback.format_exc())
+            print(f"{name} failed:", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
             exit(1)
+
+    if args.quiet:
+        print()
 
     # TODO: add option switch for this
     # with open(f"_cached_pw_substances.json", "w") as f:
