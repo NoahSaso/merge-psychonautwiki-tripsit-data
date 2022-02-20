@@ -7,7 +7,7 @@
 import argparse
 import requests
 from bs4 import BeautifulSoup
-from time import time
+from time import time, sleep
 from python_graphql_client import GraphqlClient
 import json
 import os
@@ -174,6 +174,18 @@ def pw_should_skip(name, soup):
     )
 
 
+def try_three_times(func):
+    attempt = 0
+    while attempt < 3:
+        try:
+            return func()
+        except Exception as e:
+            print()
+            print(e, file=sys.stderr)
+            attempt += 1
+            sleep(1)
+
+
 pw_substance_data = []
 
 if os.path.exists("_cached_pw_substances.json"):
@@ -190,9 +202,9 @@ if not len(pw_substance_data):
     }
     """
 
-    pw_substance_urls_data = ps_client.execute(query=pw_substance_urls_query)["data"][
-        "substances"
-    ]
+    pw_substance_urls_data = try_three_times(
+        lambda: ps_client.execute(query=pw_substance_urls_query)["data"]["substances"]
+    )
 
     for idx, substance in enumerate(pw_substance_urls_data):
         try:
@@ -320,7 +332,9 @@ if not len(pw_substance_data):
                 % substance["name"]
             )
 
-            data = ps_client.execute(query=query)["data"]["substances"]
+            data = try_three_times(
+                lambda: ps_client.execute(query=query)["data"]["substances"]
+            )
             if len(data) == 0:
                 continue
             elif len(data) > 1:
