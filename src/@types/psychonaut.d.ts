@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
 
 export interface PwSubstance {
-    name: String;
-    url: String;
+    name: string;
+    url: string;
     featured: Boolean;
     effects: [Effect];
     experiences: [Experience];
@@ -10,26 +10,26 @@ export interface PwSubstance {
     tolerance: SubstanceTolerance;
     roa: SubstanceRoaTypes;
     roas: [SubstanceRoa];
-    summary: String;
+    summary: string;
     images: [SubstanceImage];
-    addictionPotential: String;
-    toxicity: [String];
-    crossTolerances: [String];
-    commonNames: [String];
+    addictionPotential: string;
+    toxicity: [string];
+    crossTolerances: [string];
+    commonNames: [string];
     uncertainInteractions: [PwSubstance];
     unsafeInteractions: [PwSubstance];
     dangerousInteractions: [PwSubstance];
 }
 
 export type SubstanceClass = {
-    chemical: [String]
-    psychoactive: [String]
+    chemical: [string]
+    psychoactive: [string]
 }
 
 export type SubstanceTolerance = {
-    full: String
-    half: String
-    zero: String
+    full: string
+    half: string
+    zero: string
   }
 
 export interface RoaRange {
@@ -40,7 +40,7 @@ export interface RoaRange {
 
 
 export type SubstanceRoaDose = {
-    units: String
+    units: string
     threshold: number
     heavy: number
     common: RoaRange
@@ -59,7 +59,7 @@ export type SubstanceRoaDose = {
   }
 
   type SubstanceRoa = {
-    name: String
+    name: string
     dose: SubstanceRoaDose
     duration: SubstanceRoaDuration
     bioavailability: RoaRange
@@ -79,13 +79,13 @@ export type SubstanceRoaDose = {
   }
 
   type SubstanceImage = {
-    thumb: String
-    image: String
+    thumb: string
+    image: string
   }
 
   type Effect = {
-    name: String
-    url: String
+    name: string
+    url: string
     substances: [PwSubstance]
     experiences: [Experience]
   }
@@ -97,26 +97,26 @@ export type SubstanceRoaDose = {
 
   type Query = {
     substances(
-      effect: String,
-      query: String,
-      chemicalClass: String,
-      psychoactiveClass: String,
+      effect: string,
+      query: string,
+      chemicalClass: string,
+      psychoactiveClass: string,
       limit: number | 10,
       offset: number | 10,
     ): [PwSubstance]
     substances_by_effect(
-      effect: [String],
+      effect: [string],
       limit: number | 50,
       offset: number | 0,
     ): [PwSubstance]
     effects_by_substance(
-      substance: String,
+      substance: string,
       limit: number | 50,
       offset: number | 0
     ): [Effect]
     experiences(
-      substances_by_effect: String,
-      effects_by_substance: String,
-      substance: String
+      substances_by_effect: string,
+      effects_by_substance: string,
+      substance: string
     ): [Experience]
   }

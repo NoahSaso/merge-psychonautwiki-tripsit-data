@@ -19,7 +19,7 @@ export interface CbSubstance {
 
 export interface Classes {
     chemical: string[] | null;
-    psychoactive: Psychoactive[] | null;
+    psychoactive: string[] | null;
 }
 
 export enum Psychoactive {
