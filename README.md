@@ -2,6 +2,9 @@
 
 Script to merge data from PsychonautWiki API + pages and TripSit factsheets into one standardized format
 
+Now with Typescript!
+
+# Python
 ## Installation
 
 1.  Install virtualenv
@@ -14,7 +17,7 @@ Script to merge data from PsychonautWiki API + pages and TripSit factsheets into
     ```
 3.  Activate virtual environment
     ```
-    source env/bin/activate
+    source env/scripts/activate
     ```
 4.  Install packages
     ```
@@ -34,7 +37,32 @@ optional arguments:
   -h, --help  show this help message and exit
 ```
 
-## Output Schema
+# NodeJS
+
+The NodeJS version utilizes eslint for linting and prettier for formatting. It also uses typescript for type checking.
+Types have been created by online converters and hand, I am not an expert at typescript, would welcome improvements!
+
+## Installation
+1.  Install packages
+    ```
+    npm install
+    ```
+
+## Usage
+```
+npm run start
+```
+
+## Development
+Dev script will do a lint, bump the version of thispacakge, and then start Nodemon.
+Nodemon will watch for changes and restart the script when changes are detected, making development easier.
+Please run the lint script before a PR to ensure code is formatted correctly!
+
+```
+npm run dev
+```
+
+# Output Schema
 
 | Property                  | Type                     | Description                                                                    | Source                                                                                |
 | ------------------------- | ------------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
