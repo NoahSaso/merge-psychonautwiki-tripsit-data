@@ -10,7 +10,7 @@ import {CbSubstance, Dosage, Name} from './@types/combined';
 import {PwSubstance} from './@types/psychonaut';
 
 // Limits API calls during development
-const useCache = true;
+const useCache = false;
 
 const acceptableRoas = [
   'oral',
@@ -39,9 +39,9 @@ const acceptableDosages = [
  */
 export async function updateDrugDb() {
   console.debug('[updateDrugDb] Starting!');
-  const tsData = await getTSData();
+  // const tsData = await getTSData();
   const pwData = await getPWData();
-  await combineData(tsData, pwData);
+  // await combineData(tsData, pwData);
   console.debug('[updateDrugDb] Finished!');
 }
 
@@ -161,7 +161,7 @@ export async function getPWData(): Promise<any> {
   async function queryPW():Promise<any> {
     console.debug(`[queryPW] Starting!`);
     try {
-      console.debug(`[queryPW] requesting: ${pwQuery}`);
+      // console.debug(`[queryPW] requesting: ${pwQuery}`);
       await pwClient.request(pwQuery).then((data) => {
         console.debug(`[queryPW] data: ${data}!`);
         if (data.substances) {
@@ -189,22 +189,13 @@ export async function getPWData(): Promise<any> {
     }
   }
 
-  await pwClient.request(pwQuery).then((data) => {
-    console.debug(`[queryPW] data: ${data}!`);
-    if (data.substances) {
-      console.debug(`[queryPW] queryPW: success`);
-      return data.substances;
-    }
-  });
+  const drugData = await queryPW();
 
-  // await queryPW().then((drugData) => {
-  //   console.debug(drugData);
-  //   // saveData(drugData, dbName);
-  //   // return new Promise((resolve) => {
-  //   //   resolve(drugData);
-  //   //   console.debug(`[updateDrugDb] Got ${drugData.length} drugs from psychonautwiki`);
-  //   // });
-  // });
+  // saveData(drugData, dbName);
+  return new Promise((resolve) => {
+    resolve(drugData);
+    console.debug(`[updateDrugDb] Got ${drugData.length} drugs from psychonautwiki`);
+  });
 }
 
 /**
