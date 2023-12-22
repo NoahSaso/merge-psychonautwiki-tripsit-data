@@ -1,0 +1,53 @@
+{
+  "name": "tripsit_and_psychonautwiki_combined",
+  "version": "1.0.4",
+  "description": "A scraper",
+  "main": "scrape.ts",
+  "engines": {
+    "node": "v21.1.0",
+    "npm": "10.2.0"
+  },
+  "scripts": {
+    "dev": "npm run nodemon",
+    "lint": "eslint --ext ts .",
+    "patch": "npm version patch -git-tag-version false",
+    "nodemon": "nodemon --config ./nodemon.json",
+    "start": "ts-node --transpile-only src/scrape.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TripSit/merge-psychonautwiki-tripsit-data.git"
+  },
+  "keywords": [
+    "Harm",
+    "Reduction",
+    "Scraper"
+  ],
+  "author": "Eric / Moonbear / Teknos <eric@tripsit.me>",
+  "contributors": [],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/TripSit/merge-psychonautwiki-tripsit-data/issues"
+  },
+  "homepage": "https://github.com/TripSit/merge-psychonautwiki-tripsit-data#readme",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "eslint-config-airbnb-typescript": "^17.1.0",
+    "graphql-request": "^5.0.0",
+    "jssoup": "^0.0.15",
+    "tripsit_drug_db": "github:TripSit/drugs",
+    "ts-node": "^10.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.3",
+    "@typescript-eslint/eslint-plugin": "^5.30.6",
+    "@typescript-eslint/parser": "^5.30.6",
+    "eslint": "^8.20.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-import-resolver-typescript": "^3.2.6",
+    "eslint-plugin-import": "^2.26.0",
+    "nodemon": "^2.0.19",
+    "typescript": "^4.7.4"
+  }
+}
