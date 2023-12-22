@@ -4,7 +4,7 @@ Script to merge data from PsychonautWiki API + pages and TripSit factsheets into
 
 Now with Typescript!
 
-# Python
+# Python - Developed by Noah Saso
 ## Installation
 
 1.  Install virtualenv
@@ -17,7 +17,7 @@ Now with Typescript!
     ```
 3.  Activate virtual environment
     ```
-    source env/scripts/activate
+    source env/bin/activate
     ```
 4.  Install packages
     ```
@@ -26,7 +26,7 @@ Now with Typescript!
 
 ## Usage
 ```
-python scrape.py [-h] [output]
+python ./src/scrape.py [-h] [output]
 
 Scrape PsychonautWiki and TripSit data into unified dataset
 
@@ -37,30 +37,28 @@ optional arguments:
   -h, --help  show this help message and exit
 ```
 
-# NodeJS
+# NodeJS - Developed by Moonbear
 
 The NodeJS version utilizes eslint for linting and prettier for formatting. It also uses typescript for type checking.
-Types have been created by online converters and hand, I am not an expert at typescript, would welcome improvements!
+Types have been checked but could be improved!
 
 ## Installation
 1.  Install packages
-    ```
-    npm install
-    ```
+```
+npm install
+```
 
 ## Usage
 ```
 npm run start
 ```
+This will run the program and output the data to `./output/combinedDb.json`
 
 ## Development
-Dev script will do a lint, bump the version of thispacakge, and then start Nodemon.
-Nodemon will watch for changes and restart the script when changes are detected, making development easier.
-Please run the lint script before a PR to ensure code is formatted correctly!
-
 ```
 npm run dev
 ```
+Nodemon will watch for changes and restart the script when changes are detected, making development easier.
 
 # Output Schema
 

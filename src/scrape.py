@@ -552,16 +552,19 @@ for name in all_substance_names:
             existing_roa["duration"] = ts_roa["duration"]
 
     interactions = None
-    combos = ts_substance.get("combos")
-    if combos:
-        interactions = []
-        for key, combo_data in combos.items():
-            if key in ts_combo_ignore:
-                continue
+    try:
+        combos = ts_substance.get("combos")
+        if combos:
+            interactions = []
+            for key, combo_data in combos.items():
+                if key in ts_combo_ignore or not isinstance(combo_data, dict):
+                    continue
 
-            combo_data["name"] = ts_combo_transformations[key]
-            interactions.append(combo_data)
-        interactions = sorted(interactions, key=lambda i: i["name"])
+                combo_data["name"] = ts_combo_transformations[key]
+                interactions.append(combo_data)
+            interactions = sorted(interactions, key=lambda i: i["name"])
+    except Exception:
+        pass
 
     substance_data.append(
         {

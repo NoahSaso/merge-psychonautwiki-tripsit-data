@@ -1,107 +1,95 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
 /* eslint-disable camelcase */
 /* eslint-disable max-len */
 
 import fs from 'fs';
 import axios from 'axios';
-import {GraphQLClient} from 'graphql-request';
-import {TsSubstance} from './@types/tripsit';
-import {CbSubstance, Dosage, Name} from './@types/combined';
-import {PwSubstance} from './@types/psychonaut';
+import { GraphQLClient } from 'graphql-request';
+import {
+  Dose as TsDose,
+  Drug,
+  Duration as TsDuration,
+} from 'tripsit_drug_db';
+import path from 'path';
+import {
+  CbSubstance,
+  Strength,
+  Status,
+  Psychoactive,
+  Chemical,
+  Interaction,
+  Roa,
+  Period,
+  Dosage,
+  Duration,
+} from './@types/combined';
+import {
+  Dose as PwDose,
+  Duration as PwDuration,
+  PwSubstance,
+  Range,
+} from './@types/psychonaut';
 
 // Limits API calls during development
 const useCache = false;
 
-const acceptableRoas = [
-  'oral',
-  'sublingual',
-  'buccal',
-  'insufflated',
-  'rectal',
-  'transdermal',
-  'subcutaneous',
-  'intramuscular',
-  'intravenous',
-  'smoked',
-];
+const outputFolder = path.join(__dirname, '../output');
 
-const acceptableDosages = [
-  'threshold',
-  'heavy',
-  'common',
-  'light',
-  'strong',
-  'dangerous',
-];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function saveData(data: any, fileName: string): Promise<string> {
+  // console.debug('[saveData] Starting!');
 
-/**
- * Updates the local databases.
- */
-export async function updateDrugDb() {
-  console.debug('[updateDrugDb] Starting!');
-  // const tsData = await getTSData();
-  const pwData = await getPWData();
-  // await combineData(tsData, pwData);
-  console.debug('[updateDrugDb] Finished!');
-}
+  const filePath = path.join(outputFolder, `${fileName}.json`);
 
-/**
- * Pulls info from TripSit's database.
- */
-export async function getTSData(): Promise<TsSubstance[]> {
-  console.debug('[getTSData] Starting!');
+  fs.writeFile(filePath, JSON.stringify(data, null, 2), err => {
+    if (err) {
+      console.log(err);
+    }
+  });
 
-  const dbName = 'tripsitDB';
-
-  // Check if the cache exists, and if so, use it.
-  if (useCache && fs.existsSync(`./cache/${dbName}.json`)) {
-    const rawdata = fs.readFileSync(`./cache/${dbName}.json`);
-    const data = JSON.parse(rawdata.toString());
-    return new Promise((resolve) => {
-      resolve(data);
-      console.debug(`[getTSData] Got ${Object.keys(data).length} drugs from TripSit!`);
-    });
-  }
-
-  const tsApiUrl = 'https://tripbot.tripsit.me/api/tripsit/getAllDrugs';
-
-  const {data} = await axios.get(tsApiUrl);
-
-  const drugData = data.data[0] as TsSubstance[];
-
-  saveData(drugData, dbName);
-
-  return new Promise((resolve) => {
-    resolve(drugData);
-    console.debug(`[getTSData] Got ${Object.keys(drugData).length} drugs from TripSit!`);
+  return new Promise(resolve => {
+    resolve(filePath);
   });
 }
 
-/**
- * Pulls info from PsychonautWiki's database.
- */
-export async function getPWData(): Promise<any> {
-  console.debug('[getPwData] Starting!');
-  const dbName = 'psychonautDB';
-
+async function getTSData(): Promise<{
+  [key: string]: Drug;
+}> {
   // Check if the cache exists, and if so, use it.
-  if (useCache && fs.existsSync(`./cache/${dbName}.json`)) {
-    const rawdata = fs.readFileSync(`./cache/${dbName}.json`);
-    const data = JSON.parse(rawdata.toString());
-    return new Promise((resolve) => {
-      resolve(data);
-      console.debug(`[getTSData] Got ${Object.keys(data).length} drugs from Psychonaut Wiki!`);
-    });
+  if (useCache && fs.existsSync(path.join(outputFolder, 'tripsitDB.json'))) {
+    const rawData = fs.readFileSync(path.join(outputFolder, 'tripsitDB.json'));
+    // console.debug(`[getTSData] Got ${Object.keys(data).length} drugs from TripSit Cache!`);
+    return JSON.parse(rawData.toString());
   }
 
+  // console.log('[getTSData] Getting data from TripSit API!');
 
-  // PW uses graphql, so we need to use a graphql client
-  const pwApiUrl = 'https://api.psychonautwiki.org';
-  const pwClient = new GraphQLClient(pwApiUrl);
-  const pwQuery = `
+  const data = await axios.get('https://raw.githubusercontent.com/TripSit/drugs/main/drugs.json');
+  const drugData = data.data as {
+    [key: string]: Drug;
+  };
+
+  console.log(`Got ${Object.values(drugData).length} drugs from TripSit API!`);
+
+  saveData(drugData, 'tripsitDB');
+
+  return drugData;
+}
+
+async function getPWData(): Promise<PwSubstance[]> {
+  // console.debug('[getPwData] Starting!');
+
+  if (useCache && fs.existsSync('./cache/psychonautDB.json')) {
+    return JSON.parse(fs.readFileSync('./cache/psychonautDB.json').toString());
+  }
+
+  const pwResponse = await new GraphQLClient('https://api.psychonautwiki.org').request(`
   {
     substances(limit: 1000) {
-      url 
+      url
       name
       summary
       addictionPotential
@@ -115,294 +103,592 @@ export async function getPWData(): Promise<any> {
       dangerousInteractions {name}
       roa {oral {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} sublingual {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} buccal {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} insufflated {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} rectal {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} transdermal {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} subcutaneous {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} intramuscular {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} intravenous {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}} smoked {name dose {units threshold heavy common {min max} light {min max} strong {min max}} duration { afterglow {min max units} comeup {min max units} duration {min max units} offset {min max units} onset {min max units} peak {min max units} total {min max units}} bioavailability {min max}}}    }
   }
-  `;
+  `) as {
+    substances: PwSubstance[];
+  };
 
-  /**
-   * @param {number} attempt - The number of times the function has been called
-   */
-  // async function tryThreeTimes(attempt:number):Promise<any> {
-  //   if (attempt < 3) {
-  //     try {
-  //       console.debug(`[getPwData] tryThreeTimes: try #${attempt + 1}`);
-  //       await pwClient.request(pwQuery).then((data) => {
-  //         if (data.substances) {
-  //           console.debug(`[getPwData] tryThreeTimes: try #${attempt + 1} success`);
-  //           return data.substances;
-  //         }
-  //       });
-  //     } catch (error:any) {
-  //       if (error.response.status === 200) {
-  //         console.debug(`[getPwData] tryThreeTimes: try #${attempt + 1} failed,
-  //         but status code is 200, so we'll return the data`);
-  //         console.debug(error.response.errors);
-  //         error.response.errors.forEach((e:any) => {
-  //           const drugName = error.response.data.substances[e.path[1]].name;
-  //           console.debug( error.response.data.substances[e.path[1]]);
-  //           const property = e.path[2];
-  //           const subProperty = e.path[3];
-  //           // eslint-disable-next-line max-len
-  //           console.debug(`Error at: ${drugName}${property ? `/${property}` : ``}${subProperty ? `/${subProperty}` : ``}`);
-  //           console.debug(e.message);
-  //         });
-  //         console.debug(`[getPwData] tryThreeTimes: try #${attempt + 1} success`);
-  //         return error.response.data.substances;
-  //       } else {
-  //         tryThreeTimes(attempt+1);
-  //       }
-  //     }
-  //   } else {
-  //     console.error(`[getPwData] tryThreeTimes: failed after ${attempt} attempts!`);
-  //   }
-  // }
+  const { substances } = pwResponse;
 
+  console.log(`Got ${substances.length} drugs from Psychonaut API!`);
 
-  /**
-   */
-  async function queryPW():Promise<any> {
-    console.debug(`[queryPW] Starting!`);
-    try {
-      // console.debug(`[queryPW] requesting: ${pwQuery}`);
-      await pwClient.request(pwQuery).then((data) => {
-        console.debug(`[queryPW] data: ${data}!`);
-        if (data.substances) {
-          console.debug(`[queryPW] queryPW: success`);
-          return data.substances;
-        }
-      });
-    } catch (error:any) {
-      if (error.response.status === 200) {
-        console.debug(`[queryPW] queryPW: failed,
-          but status code is 200, so we'll return the data`);
-        console.debug(error.response.errors);
-        error.response.errors.forEach((e:any) => {
-          const drugName = error.response.data.substances[e.path[1]].name;
-          console.debug( error.response.data.substances[e.path[1]]);
-          const property = e.path[2];
-          const subProperty = e.path[3];
-          // eslint-disable-next-line max-len
-          console.debug(`Error at: ${drugName}${property ? `/${property}` : ``}${subProperty ? `/${subProperty}` : ``}`);
-          console.debug(e.message);
-        });
-        console.debug(`[queryPW] queryPW: success`);
-        return error.response.data.substances;
-      }
-    }
-  }
-
-  const drugData = await queryPW();
-
-  // saveData(drugData, dbName);
-  return new Promise((resolve) => {
-    resolve(drugData);
-    console.debug(`[updateDrugDb] Got ${drugData.length} drugs from psychonautwiki`);
-  });
+  saveData(substances, 'psychonautDB');
+  return substances;
 }
 
-/**
- * Combines both databases into a single standard DB.
- * @param {tsDrugEntry[]} tsData
- * @param {pwDrugEntry[]} pwData
- */
-export async function combineData(tsData:TsSubstance[], pwData:PwSubstance[]): Promise<CbSubstance[]> {
-  console.debug('[combineData] Starting!');
+async function formatTsDuration(
+  durationData: TsDuration,
+  type: string,
+  combinedDrug: CbSubstance,
+) {
+  const durationUnit = durationData._unit;
+  // Check if one of the keys is 'value' and if so, use that and assume "Oral" roa
 
-  const dbName = 'combinedDb';
-  const combinedDb = [] as CbSubstance[];
-  let combinedDbLength = 0;
+  const periodName = type.slice(0, 1).toUpperCase() + type.slice(1) as Period; // Capitalize the first letter
 
-  pwData.forEach((pwDrug) => {
-    const combinedDrug = {} as CbSubstance;
+  if (durationData.value) {
+    const roaEntry = combinedDrug.roas?.find(roa => roa.name === 'Oral') || {} as Roa;
+
+    if (!roaEntry.duration) {
+      roaEntry.duration = [];
+    }
+
+    // Check if the periodName already exists in the roaEntry duration list
+    if (roaEntry.duration.find(duration => duration.name === periodName)) {
+      return;
+    }
+
+    roaEntry.duration.push({
+      name: periodName, // Capitalize the first letter
+      value: `${durationData.value} ${durationUnit}`,
+    });
+  } else {
+    Object.entries(durationData).forEach(([durationKey, durationValue]) => {
+      if (durationKey !== '_unit') {
+        const roaEntry = combinedDrug.roas?.find(roa => roa.name === durationKey) || {} as Roa;
+
+        if (!roaEntry.duration) {
+          roaEntry.duration = [];
+        }
+
+        // Check if the periodName already exists in the roaEntry duration list
+        if (roaEntry.duration.find(duration => duration.name === periodName)) {
+          return;
+        }
+        roaEntry.duration.push({
+          name: periodName,
+          value: `${durationValue} ${durationUnit}`,
+        });
+      }
+    });
+  }
+}
+
+async function combinePw(
+  pwData: PwSubstance[],
+  combinedDb: CbSubstance[],
+) {
+  pwData.forEach(pwDrug => {
+    // Check if the drug already exists in the combinedDb
+    const combinedDrug = combinedDb.find(drug => drug.name.toLowerCase() === pwDrug.name.toLowerCase()) || {} as CbSubstance;
 
     combinedDrug.url = pwDrug.url;
-    // combinedDrug.experiencesUrl =
+    // combinedDrug.experiencesUrl = // Tripsit only
     combinedDrug.name = pwDrug.name;
-    combinedDrug.aliases = pwDrug.commonNames;
-    combinedDrug.aliasesStr = pwDrug.commonNames.join(', ');
-    combinedDrug.summary = pwDrug.summary;
-    // combinedDrug.reagents =
-    combinedDrug.classes = pwDrug.class;
-    combinedDrug.toxicity = pwDrug.toxicity;
-    combinedDrug.addictionPotential = pwDrug.addictionPotential;
-    combinedDrug.tolerance = pwDrug.tolerance;
-    combinedDrug.crossTolerances = pwDrug.crossTolerances;
-    // combinedDrug.roas = pwDrug.roa;
-    // combinedDrug.interactions =
+    combinedDrug.aliases = pwDrug.commonNames ?? undefined;
+    combinedDrug.aliasesStr = pwDrug.commonNames ? pwDrug.commonNames.join(', ') : undefined;
+    combinedDrug.summary = pwDrug.summary.length > 0 ? pwDrug.summary : undefined;
+    // combinedDrug.reagents = // Tripsit only
+    // combinedDrug.classes = pwDrug.class;
+    combinedDrug.toxicity = pwDrug.toxicity ?? undefined;
+    combinedDrug.addictionPotential = pwDrug.addictionPotential ?? undefined;
+    combinedDrug.tolerance = pwDrug.tolerance ?? undefined;
+    combinedDrug.crossTolerances = pwDrug.crossTolerances ?? undefined;
 
+    if (pwDrug.roa) {
+      // combinedDrug.roas = [];
+      Object.entries(pwDrug.roa).forEach(([roaName, pwRoa]) => {
+        if (!pwRoa) return;
+        const roaEntry = {
+          name: roaName.slice(0, 1).toUpperCase() + roaName.slice(1),
+        } as {
+          name: string;
+          dosage?: Dosage[];
+          duration?: Duration[];
+          bioavailability?: string;
+        };
+
+        if (pwRoa.dose) {
+          roaEntry.dosage = [];
+          const { units } = pwRoa.dose;
+
+          Object.entries(pwRoa.dose).forEach(([doseName, doseData]) => {
+            if (!doseData) return;
+
+            // If the doseData is a string, it's the unit, don't do anything
+            if (typeof doseData === 'string') {
+              return;
+            }
+
+            let doseString = '';
+
+            if ((doseData as Range).min) {
+              const { min } = doseData as Range;
+              const { max } = doseData as Range;
+              doseString = `${min}-${max} ${units}`;
+            } else {
+              doseString = `${doseData} ${units}`;
+            }
+
+            const doseEntry = {
+              name: doseName.slice(0, 1).toUpperCase() + doseName.slice(1),
+              value: doseString,
+            } as Dosage;
+
+            roaEntry.dosage?.push(doseEntry);
+          });
+
+          if (pwRoa.duration) {
+            roaEntry.duration = [];
+            Object.keys(pwRoa.duration).forEach(durationName => {
+              const duration = (pwRoa.duration as PwDuration)[durationName as keyof typeof pwRoa.duration];
+              if (!duration) return;
+              if (!duration.min) return;
+              const durationMax = duration.max ? `-${duration.max}` : null;
+
+              const durationEntry = {
+                name: durationName.slice(0, 1).toUpperCase() + durationName.slice(1) as Period,
+                value: `${duration.min}${durationMax} ${duration.units}`,
+              } as Duration;
+
+              roaEntry.duration?.push(durationEntry);
+            });
+          }
+
+          if (pwRoa.bioavailability) {
+            roaEntry.bioavailability = pwRoa.bioavailability.max ? pwRoa.bioavailability.max.toString() : '';
+            roaEntry.bioavailability = `${roaEntry.bioavailability}%`;
+          }
+
+          if (roaEntry.dosage && roaEntry.dosage.length > 0 && roaEntry.duration && roaEntry.duration.length > 0) {
+            if (!combinedDrug.roas) {
+              combinedDrug.roas = [] as Roa[];
+            }
+            combinedDrug.roas.push(roaEntry);
+          }
+        }
+      });
+    }
+
+    if (pwDrug.uncertainInteractions || pwDrug.unsafeInteractions || pwDrug.dangerousInteractions) {
+      combinedDrug.interactions = [];
+      if (pwDrug.uncertainInteractions) {
+        pwDrug.uncertainInteractions.forEach(interaction => {
+          const interactionEntry = {
+            status: 'Caution' as Status,
+            name: interaction.name,
+          };
+          combinedDrug.interactions?.push(interactionEntry);
+        });
+      }
+      if (pwDrug.unsafeInteractions) {
+        pwDrug.unsafeInteractions.forEach(interaction => {
+          const interactionEntry = {
+            status: 'Unsafe' as Status,
+            name: interaction.name,
+          };
+          combinedDrug.interactions?.push(interactionEntry);
+        });
+      }
+      if (pwDrug.dangerousInteractions) {
+        pwDrug.dangerousInteractions.forEach(interaction => {
+          const interactionEntry = {
+            status: 'Dangerous' as Status,
+            name: interaction.name,
+          };
+          combinedDrug.interactions?.push(interactionEntry);
+        });
+      }
+    }
+
+    if (combinedDrug.roas) {
+      combinedDrug.roas.forEach(roa => {
+        if (roa.dosage) {
+        // This is the order we want them to be in
+          const strengths = [
+            'Threshold',
+            'Light',
+            'Common',
+            'Strong',
+            'Heavy',
+            'Dangerous',
+            'Fatal',
+          ];
+
+          // Sort the dosage array by name
+          roa.dosage.sort(
+            (a, b) => strengths.indexOf(a.name) - strengths.indexOf(b.name),
+          );
+        }
+        if (roa.duration) {
+          // This is the order we want them to be in
+          const periods = [
+            'Comeup',
+            'Onset',
+            'Duration',
+            'Peak',
+            'Offset',
+            'Afterglow',
+            'After Effects',
+            'Total',
+          ];
+
+          // Sort the duration array by name
+          roa.duration.sort(
+            (a, b) => periods.indexOf(a.name) - periods.indexOf(b.name),
+          );
+        }
+      });
+    }
     combinedDb.push(combinedDrug);
-    combinedDbLength++;
-  });
-
-  // Go through each key in tsData and build out a combinedDb[] object
-  // Object.keys(tsData).forEach((key) => {
-  //   const tsDrug = tsData[key as keyof typeof tsData] as TsSubstance;
-  //   console.debug(`[combineData] (${combinedDbLength}) Combining ${tsDrug.name}`);
-  //   const combinedDrug = {} as CbSubstance;
-
-  //   combinedDrug.name = tsDrug.pretty_name;
-
-
-  //   if (tsDrug.properties) {
-  //     if (tsDrug.properties.summary) {
-  //       combinedDrug.summary = tsDrug.properties.summary;
-  //     }
-
-  //     if (tsDrug.properties['test-kits']) {
-  //       combinedDrug.reagents = tsDrug.properties['test-kits'];
-  //     }
-
-  //     if (tsDrug.properties.bioavailability) {
-  //       // Match for the bioavailablity ROA and value
-  //       const bioMatch = tsDrug.properties.bioavailability.matchAll(/([a-zA-Z\/]+)[.:\s]+([0-9\.%\s\+\-]+)/g);
-  //       if (bioMatch) {
-  //         for (const match of bioMatch) {
-  //           // Replace trailing characters with nothing
-  //           const bioValue = match[2].replace(/[. \t+]+$/, '');
-  //           const roaName = match[1];
-
-  //           // Check if the value is actually a number
-  //           // if (bioValue.match(/[0-9]/)) {
-  //           if (acceptableRoas.includes(roaName.toLowerCase())) {
-  //             const roaEntry = {
-  //               name: match[1],
-  //               bioavailability: bioValue,
-  //             };
-
-  //             if (combinedDrug.roas) {
-  //               let index = 0;
-  //               combinedDrug.roas.forEach((roa) => {
-  //                 console.debug(`[combineData] Attempting to merge roa: ${roa.name}`);
-  //                 if (roa.name === roaName) {
-  //                   console.debug(`[combineData] Merging roa: ${roa.name}`);
-  //                   roa.bioavailability = bioValue;
-  //                 }
-  //                 combinedDrug.roas[index] = roa;
-  //                 index++;
-  //               });
-  //             } else {
-  //               combinedDrug.roas = [{
-  //                 name: roaName,
-  //                 bioavailability: bioValue,
-  //               }];
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-
-  //   if (tsDrug.formatted_dose) {
-  //     Object.keys(tsDrug.formatted_dose).forEach((roaName) => {
-  //       if (acceptableRoas.includes(roaName.toLowerCase())) {
-  //         const roaDose = tsDrug.formatted_dose![roaName as keyof typeof tsDrug.formatted_dose];
-  //         const dosages = [] as Dosage[];
-
-  //         // I hate to use 'as any' here but TS's database does not have great typings
-  //         Object.keys(roaDose as any).forEach((doseName) => {
-  //           if (acceptableDosages.includes(doseName.toLowerCase())) {
-  //             dosages.push({
-  //               name: doseName as Name,
-  //               value: roaDose![doseName as keyof typeof roaDose],
-  //             });
-  //           }
-  //         });
-
-  //         if (combinedDrug.roas) {
-  //           let index = 0;
-  //           combinedDrug.roas.forEach((roa) => {
-  //             console.debug(`[combineData] Attempting to merge roa: ${roa.name}`);
-  //             if (roa.name === roaName) {
-  //               console.debug(`[combineData] Merging roa: ${roa.name}`);
-  //               roa.dosage = dosages;
-  //             }
-  //             combinedDrug.roas[index] = roa;
-  //             index++;
-  //           });
-  //         } else {
-  //           combinedDrug.roas = [{
-  //             name: roaName,
-  //             dosage: dosages,
-  //           }];
-  //         }
-  //       }
-  //     });
-  //   }
-
-  //   // if (tsDrug.formatted_onset) {
-  //   //   Object.keys(tsDrug.formatted_onset).forEach((roaName) => {
-  //   //     if (acceptableRoas.includes(roaName.toLowerCase())) {
-  //   //       const roaOnset = tsDrug.formatted_onset![roaName as keyof typeof tsDrug.formatted_onset];
-
-  //   //       // I hate to use 'as any' here but TS's database does not have great typings
-  //   //       Object.keys(roaDose as any).forEach((doseName) => {
-  //   //         if (acceptableDosages.includes(doseName.toLowerCase())) {
-  //   //           dosages.push({
-  //   //             name: doseName as Name,
-  //   //             value: roaDose![doseName as keyof typeof roaDose],
-  //   //           });
-  //   //         }
-  //   //       });
-
-  //   //       let index = 0;
-  //   //       combinedDrug.roas.forEach((roa) => {
-  //   //         console.debug(`[combineData] Attempting to merge roa: ${roa.name}`);
-  //   //         if (roa.name === roaName) {
-  //   //           console.debug(`[combineData] Merging roa: ${roa.name}`);
-  //   //           roa.dosage = dosages;
-  //   //         }
-  //   //         combinedDrug.roas[index] = roa;
-  //   //         index++;
-  //   //       });
-  //   //     }
-  //   //   });
-  //   // }
-
-  //   if (tsDrug.aliases !== undefined && tsDrug.aliases.length > 0) {
-  //     combinedDrug.aliases = tsDrug.aliases;
-  //     combinedDrug.aliasesStr = tsDrug.aliases.join(', ');
-  //   };
-
-  //   if (tsDrug.links) {
-  //     if (tsDrug.links.experiences) {
-  //       combinedDrug.experiencesUrl = tsDrug.links.experiences;
-  //     }
-  //   }
-
-  //   // combinedDrug.url =
-  //   // combinedDrug.classes =
-  //   // combinedDrug.toxicity =
-  //   // combinedDrug.addictionPotential =
-  //   // combinedDrug.tolerance =
-  //   // combinedDrug.crossTolerances =
-  //   // combinedDrug.interactions =
-  //   combinedDb.push(combinedDrug);
-  //   combinedDbLength++;
-  // });
-
-  saveData(combinedDb, dbName);
-
-  return new Promise((resolve) => {
-    resolve([]);
-    console.debug(`[combineData] Saved ${combinedDb.length} drugs to the local DB`);
   });
 }
 
-/**
- * Saves data to the local system
- * @param {any} data
- * @param {string} fileName
- */
-export async function saveData(data:any, fileName:string): Promise<void> {
-  console.debug('[saveData] Starting!');
-  fs.writeFile(`.\\cache\\${fileName}.json`, JSON.stringify(data, null, 2), function(err) {
-    if (err) {
-      console.log(err);
+async function combineTs(
+  tsData: {
+    [key: string]: Drug;
+  },
+  combinedDb: CbSubstance[],
+) {
+  Object.keys(tsData).forEach(key => {
+    const tsDrug = tsData[key as keyof typeof tsData] as Drug;
+
+    // Check if the drug already exists in the combinedDb
+    let combinedDrug = combinedDb.find(drug => drug.name.toLowerCase() === tsDrug.name.toLowerCase());
+
+    // if (combinedDrug) {
+    //   console.log(`[combineData] ${tsDrug.name} already exists in the combined DB!`);
+    // }
+
+    if (!combinedDrug) {
+      // console.log(`[combineData] (${combinedDbLength}) ${tsDrug.name} does not exist in the combined DB!`);
+      combinedDb.push({
+        name: tsDrug.name,
+        url: `https://wiki.tripsit.me/wiki/${tsDrug.name}`,
+      } as CbSubstance);
+
+      combinedDrug = combinedDb.find(drug => drug.name.toLowerCase() === tsDrug.name.toLowerCase()) as CbSubstance;
+    }
+
+    if (tsDrug.links && tsDrug.links.experiences) {
+      combinedDrug.experiencesUrl = tsDrug.links.experiences;
+    }
+
+    // combinedDrug.name = tsDrug.pretty_name;
+
+    if (tsDrug.aliases) {
+      // Go through combinedDrug.aliases and add any aliases that don't already exist
+      if (!combinedDrug.aliases) {
+        combinedDrug.aliases = [];
+      }
+      tsDrug.aliases.forEach(alias => {
+        if (!combinedDrug?.aliases?.includes(alias)) {
+          combinedDrug?.aliases?.push(alias);
+        }
+      });
+
+      if (!combinedDrug.aliasesStr) {
+        combinedDrug.aliasesStr = tsDrug.aliases.join(', ');
+      }
+      tsDrug.aliases.forEach(alias => {
+        if (!combinedDrug?.aliasesStr?.includes(alias)) {
+          (combinedDrug as CbSubstance).aliasesStr = `${combinedDrug?.aliasesStr}, ${alias}`;
+        }
+      });
+    }
+
+    if (tsDrug.properties && tsDrug.properties.summary) {
+      combinedDrug.summary = tsDrug.properties.summary;
+    }
+
+    if (tsDrug.properties && tsDrug.properties['test-kits']) {
+      combinedDrug.reagents = tsDrug.properties['test-kits'];
+    }
+
+    if (tsDrug.categories) {
+      const psychoactiveNames = {
+        Antidepressant: 'Antidepressant',
+        Antipsychotic: 'Antipsychotic',
+        'Atypical neuroleptic': 'Atypical neuroleptic',
+        Cannabinoid: 'Cannabinoid',
+        Deliriant: 'Deliriant',
+        Depressant: 'Depressant',
+        Dissociative: 'Dissociative',
+        Empathogen: 'Empathogen',
+        Entactogen: 'Entactogen',
+        Eugeroic: 'Eugeroic',
+        'Habit Forming': 'Habit Forming',
+        Hallucinogen: 'Hallucinogen',
+        Hypnotic: 'Hypnotic',
+        Inactive: 'Inactive',
+        Nootropic: 'Nootropic',
+        Oneirogen: 'Oneirogen',
+        Opioid: 'Opioid',
+        Psychedelic: 'Psychedelic',
+        'Research Chemical': 'Research Chemical',
+        SSRI: 'SSRI',
+        Stimulant: 'Stimulant',
+        Supplement: 'Supplement',
+        Tentative: 'Tentative',
+      };
+
+      const chemicalNames = {
+        '4-oxazolidinone': '4-oxazolidinone',
+        'Amino acid': 'Amino acid',
+        'Amino acid analogue': 'Amino acid analogue',
+        'Ammonium salt': 'Ammonium salt',
+        Amine: 'Amine',
+        Aminoindane: 'Aminoindane',
+        Amphetamine: 'Amphetamine',
+        Adamantane: 'Adamantane',
+        Alcohol: 'Alcohol',
+        Alkanediol: 'Alkanediol',
+        Anilidopiperidine: 'Anilidopiperidine',
+        Arylcyclohexylamine: 'Arylcyclohexylamine',
+        Barbiturate: 'Barbiturate',
+        Benzamide: 'Benzamide',
+        Benzazepine: 'Benzazepine',
+        Benzhydryl: 'Benzhydryl',
+        Benzisoxazole: 'Benzisoxazole',
+        Benzodiazepine: 'Benzodiazepine',
+        Butyrophenone: 'Butyrophenone',
+        'Butyric acid': 'Butyric acid',
+        Cannabinoid: 'Cannabinoid',
+        Carbamate: 'Carbamate',
+        Common: 'Common',
+        'Choline derivative': 'Choline derivative',
+        Cysteine: 'Cysteine',
+        Cycloalkylamine: 'Cycloalkylamine',
+        Cyclopyrrolone: 'Cyclopyrrolone',
+        Diarylethylamine: 'Diarylethylamine',
+        Diol: 'Diol',
+        Diphenylpropylamine: 'Diphenylpropylamine',
+        Dibenzothiazepine: 'Dibenzothiazepine',
+        'Ethanolamine#1#': 'Ethanolamine#1#',
+        Gabapentinoid: 'Gabapentinoid',
+        Imidazoline: 'Imidazoline',
+        Imidazopyridine: 'Imidazopyridine',
+        Indazole: 'Indazole',
+        Indazolecarboxamide: 'Indazolecarboxamide',
+        Indolecarboxamide: 'Indolecarboxamide',
+        Indolecarboxylate: 'Indolecarboxylate',
+        'Indole alkaloid': 'Indole alkaloid',
+        'Indole cannabinoid': 'Indole cannabinoid',
+        Khat: 'Khat#1#',
+        Lactone: 'Lactone',
+        Lysergamide: 'Lysergamide',
+        MDxx: 'MDxx',
+        Naphthoylindole: 'Naphthoylindole',
+        Naphthoylindazole: 'Naphthoylindazole',
+        'Nitrogenous organic acid': 'Nitrogenous organic acid',
+        Peptide: 'Peptide',
+        Phenothiazine: 'Phenothiazine',
+        Phenylmorpholine: 'Phenylmorpholine',
+        Phenylpropene: 'Phenylpropene',
+        Phenylpropylamine: 'Phenylpropylamine',
+        Piperazinoazepine: 'Piperazinoazepine',
+        Popper: 'Popper',
+        Pyridine: 'Pyridine',
+        Quinazolinone: 'Quinazolinone',
+        Racetam: 'Racetam',
+        Salvinorin: 'Salvinorin',
+        'Substituted aminorexe': 'Substituted aminorexe',
+        'Substituted amphetamine': 'Substituted amphetamine',
+        'Substituted benzofuran': 'Substituted benzofuran',
+        'Substituted cathinone': 'Substituted cathinone',
+        'Substituted morphinan': 'Substituted morphinan',
+        'Substituted phenethylamine': 'Substituted phenethylamine',
+        'Substituted phenidate': 'Substituted phenidate',
+        'Substituted piperazine': 'Substituted piperazine',
+        'Substituted piperidine': 'Substituted piperidine',
+        'Substituted pyrrolidine': 'Substituted pyrrolidine',
+        'Substituted tropane': 'Substituted tropane',
+        'Substituted tryptamine': 'Substituted tryptamine',
+        Terpenoid: 'Terpenoid',
+        Tetrahydroisoxazole: 'Tetrahydroisoxazole',
+        Tetrahydroisoxazolopyridine: 'Tetrahydroisoxazolopyridine',
+        Thienodiazepine: 'Thienodiazepine',
+        Thiophene: 'Thiophene',
+        'Tricyclic antidepressant': 'Tricyclic antidepressant',
+        'Purine alkaloid': 'Purine alkaloid',
+        Xanthine: 'Xanthine',
+      };
+
+      const categoryMap = {
+        barbiturate: 'Barbiturate',
+        benzodiazepine: 'Benzodiazepine',
+        common: 'Common',
+        deliriant: 'Deliriant',
+        depressant: 'Depressant',
+        dissociative: 'Dissociative',
+        empathogen: 'Empathogen',
+        'habit-forming': 'Habit Forming',
+        inactive: 'Inactive',
+        nootropic: 'Nootropic',
+        opioid: 'Opioid',
+        psychedelic: 'Psychedelic',
+        'research-chemical': 'Research Chemical',
+        ssri: 'SSRI',
+        stimulant: 'Stimulant',
+        supplement: 'Supplement',
+        tentative: 'Tentative',
+      };
+
+      const psychoactiveList = [] as Psychoactive[];
+      const chemicalList = [] as Chemical[];
+
+      tsDrug.categories.forEach(category => {
+        const mappedCategory = categoryMap[category];
+
+        const chemFound = Object.keys(chemicalNames).find(name => name.toLowerCase() === mappedCategory.toLowerCase());
+        const psychoactiveFound = Object.keys(psychoactiveNames).find(name => name.toLowerCase() === mappedCategory.toLowerCase());
+        if (chemFound) {
+          chemicalList.push(chemFound as Chemical);
+        } else if (psychoactiveFound) {
+          psychoactiveList.push(psychoactiveFound as Psychoactive);
+        } else {
+          console.log(`[combineTs] ${tsDrug.name} has an unrecognized category: ${mappedCategory}`);
+          console.log(`Originally ${category} > ${mappedCategory}`);
+        }
+      });
+
+      combinedDrug.classes = {
+        psychoactive: psychoactiveList.sort() as [Psychoactive],
+        chemical: chemicalList.sort() as [Chemical],
+      };
+    }
+
+    // combinedDrug.toxicity = // PW only
+    // combinedDrug.addictionPotential = // PW only
+    // combinedDrug.tolerance = // PW only - ts has this filed but it's not populated often
+    // combinedDrug.crossTolerances = // PW only
+
+    // Roas
+    if (tsDrug.formatted_dose
+      || tsDrug.formatted_duration
+       || tsDrug.formatted_onset
+       || tsDrug.formatted_aftereffects
+       || tsDrug.properties.bioavailability
+    ) {
+      if (tsDrug.formatted_dose) {
+        const dose = tsDrug.formatted_dose as TsDose;
+        Object.entries(dose).forEach(([doseRoa, dosage]) => {
+          if (!combinedDrug) return;
+          const roaEntry = combinedDrug.roas?.find(roa => roa.name === doseRoa) || {} as Roa;
+          roaEntry.name = doseRoa;
+          let roaNote = tsDrug.dose_note;
+
+          // This is the order we want them to be in
+          const strengths = [
+            'Threshold',
+            'Light',
+            'Common',
+            'Strong',
+            'Heavy',
+            'Dangerous',
+            'Fatal',
+          ];
+
+          // Sort the keys according to that order
+          const sortedKeys = Object.keys(dosage).sort(
+            (a, b) => strengths.indexOf(a) - strengths.indexOf(b),
+          );
+
+          // For each strength in the ROA
+          sortedKeys.forEach(strength => {
+            // Check if the strength already exists from PW and if so, skip it
+            if (roaEntry.dosage?.find(doseVal => doseVal.name === strength as Strength)) {
+              return;
+            }
+
+            const strengthData = dosage[strength as keyof typeof dosage] as string;
+
+            if (strength.toLowerCase() === 'note') {
+              roaNote = strengthData;
+            } else {
+              // This essentially looks for "(any digit) (optional dash) (any digit) (optional unit)"
+              const regex = /(\d+(?:\.\d+)?)(?:-(\d+(?:\.\d+)?))?([a-zA-Z]+)?/;
+              const match = RegExp(regex).exec(strengthData);
+
+              // This is mostly for type-safety
+              if (match) {
+                // The minimum number is the first number to appear
+                const strengthMinNumber = parseFloat(match[1]);
+
+                // The max number m ay not appear at all
+                const strengthMaxNumber = match[2]
+                  ? parseFloat(match[2])
+                  : null;
+
+                if (!roaEntry.dosage) {
+                  roaEntry.dosage = [];
+                }
+
+                const roaUnit = match[3] ? match[3] : '';
+                const maxString = strengthMaxNumber ? `-${strengthMaxNumber}` : '';
+
+                // Check if the strength is included as a Name value
+                if (strengths.includes(strength as Strength)) {
+                  roaEntry.dosage.push({
+                    name: strength.slice(0, 1).toUpperCase() + strength.slice(1) as Strength,
+                    value: `${strengthMinNumber}${maxString} ${roaUnit}`,
+                    note: roaNote,
+                  });
+                } else {
+                  console.log(`[combineTs] ${tsDrug.name} has an unrecognized strength: ${strength}`);
+                }
+              }
+            }
+          });
+          if (!combinedDrug.roas) {
+            combinedDrug.roas = [] as Roa[];
+          }
+          combinedDrug.roas.push(roaEntry);
+        });
+      }
+
+      if (tsDrug.formatted_onset) {
+        formatTsDuration(tsDrug.formatted_onset as TsDuration, 'Onset', combinedDrug);
+      }
+      if (tsDrug.formatted_duration) {
+        formatTsDuration(tsDrug.formatted_duration as TsDuration, 'Duration', combinedDrug);
+      }
+      if (tsDrug.formatted_aftereffects) {
+        formatTsDuration(tsDrug.formatted_aftereffects as TsDuration, 'After Effects', combinedDrug);
+      }
+    }
+
+    if (tsDrug.combos) {
+      combinedDrug.interactions = [];
+      Object.keys(tsDrug.combos).forEach(comboName => {
+        if (!tsDrug.combos) return;
+        const combo = tsDrug.combos[comboName as keyof typeof tsDrug.combos];
+        const interactionEntry = {
+          status: combo.status as Status,
+          name: comboName,
+        } as Interaction;
+
+        if (combo.note) {
+          interactionEntry.note = combo.note;
+        }
+
+        // if (combo.source) {
+        //   interactionEntry.source = combo.source;
+        // }
+
+        if (!combinedDrug) return;
+        combinedDrug.interactions?.push(interactionEntry);
+      });
     }
   });
+}
 
-  return new Promise((resolve) => {
-    resolve();
-    console.debug(`[saveData] Saved ${`${fileName}.json`}!`);
-  });
+export default async function updateDrugDb():Promise<void> {
+  const combinedDb = [] as CbSubstance[];
+  // Check if the assets folder exists and if not, create  it
+  if (!fs.existsSync(outputFolder)) {
+    fs.mkdirSync(outputFolder);
+  }
+  const pwData = await getPWData();
+  // log.debug(F, `Got ${pwData.length} drugs from Psychonaut Wiki`);
+  await combinePw(pwData, combinedDb);
+  // const pwDrugs = combinedDb.length;
+  // log.debug(F, `Added ${combinedDb.length} drugs to the combined DB!`);
+  const tsData = await getTSData();
+  // log.debug(F, `Got ${Object.keys(tsData).length} drugs from TripSit`);
+  await combineTs(tsData, combinedDb);
+  // log.debug(F, `Added ${combinedDb.length - pwDrugs} drugs to the combined DB (and merg ed the rest) !`);
+  await saveData(combinedDb, 'combinedDB');
+  console.log(`Saved combined DB of ${combinedDb.length} drugs!`);
 }
 
 updateDrugDb();
