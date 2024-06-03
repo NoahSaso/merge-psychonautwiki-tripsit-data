@@ -183,7 +183,7 @@ def try_three_times(func):
             print()
             print(e, file=sys.stderr)
             attempt += 1
-            sleep(1)
+            sleep(attempt ** 3)
 
 
 pw_substance_data = []
